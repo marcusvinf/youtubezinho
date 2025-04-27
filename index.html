@@ -242,17 +242,21 @@
 
 
         function onPlayerStateChange(event) {
-            if (event.data === YT.PlayerState.ENDED) {
-                currentRepeat++;
-                if (currentRepeat < playlist[currentVideo].repeat) {
-                    player.seekTo(0);
-                    player.playVideo();
-                    atualizarTudo();
-                } else {
-                    pularVideo();
-                }
-            }
+    if (event.data === YT.PlayerState.ENDED) {
+        currentRepeat++;
+        if (currentRepeat < playlist[currentVideo].repeat) {
+            player.seekTo(0);
+            player.playVideo();
+            atualizarTudo();
+        } else {
+            pularVideo();
         }
+    } 
+    if (event.data === YT.PlayerState.PLAYING) {
+        atualizarTudo();  // Atualiza quando o vídeo realmente começa
+    }
+}
+
 
         function pularVideo() {
             if (!player) return alert("Player carregando!");
@@ -262,7 +266,6 @@
                 player.loadVideoById(playlist[currentVideo].videoId);
                 player.unMute();
                 player.setVolume(50);
-                atualizarTudo();
             } else {
                 if (loopAtivado) {
                     currentVideo = 0;
@@ -284,7 +287,6 @@
                 player.loadVideoById(playlist[currentVideo].videoId);
                 player.unMute();
                 player.setVolume(50);
-                atualizarTudo();
             } else {
                 alert("Já está no primeiro vídeo!");
             }
@@ -339,7 +341,6 @@
             player.loadVideoById(playlist[currentVideo].videoId);
             player.unMute();
             player.setVolume(50);
-            atualizarTudo();
         }
 
         function preCarregarTitulos() {
