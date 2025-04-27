@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>🎬 Player Customizado do YouTube</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #000000;
+            --btn-bg: #e0e0e0;
+            --btn-text: #000000;
+            --highlight: #007bff;
+        }
+
+        body.dark {
+            --bg-color: #121212;
+            --text-color: #ffffff;
+            --btn-bg: #333333;
+            --btn-text: #ffffff;
+            --highlight: #00ff99;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            text-align: center;
+            margin: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        textarea, button, input[type="text"] {
+            margin: 5px;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        textarea {
+            background: var(--btn-bg);
+            color: var(--text-color);
+            width: 80%;
+            height: 150px;
+            display: none;
+        }
+
+        button {
+            background: var(--btn-bg);
+            color: var(--btn-text);
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: var(--highlight);
+            color: #fff;
+        }
+
+        #playlistDisplay, #favoritosArea {
+            margin-top: 20px;
+            text-align: left;
+            width: 80%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        li {
+            padding: 5px 0;
+            border-bottom: 1px solid #555;
+            cursor: pointer;
+        }
+
+        li:hover {
+            background-color: var(--btn-bg);
+        }
+
+        .current {
+            color: var(--highlight);
+            font-weight: bold;
+        }
+
+        .toggle-mode {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        #infoLimite {
+            color: orange;
+        }
+    </style>
+</head>
+<body>
+    <button class="toggle-mode" onclick="toggleMode()">🌗 Mudar Tema</button>
+
+    <h2>🎵 Meu Player de YouTube com Repetições</h2>
+
+    <input type="text" id="nomePlaylist" maxlength="100" placeholder="Digite o nome da playlist"><br>
+
+    <button onclick="mostrarInput()">Adicionar Playlist</button>
+    <button onclick="limparPlaylist()">Limpar Playlist</button>
+    <button onclick="exportarPlaylist()">📤 Exportar Playlist</button>
+    <button onclick="document.getElementById('importInput').click()">📥 Importar Playlist</button>
+    <button onclick="salvarFavorito()">⭐ Salvar como Favorito</button>
+    <input type="file" id="importInput" style="display:none" accept=".json" onchange="importarPlaylist(event)">
+
+    <div id="inputArea">
+        <textarea id="playlistInput" placeholder="https://youtube.com/watch?v=ID ---- 3"></textarea><br>
+        <button onclick="iniciarPlaylist()" id="startBtn" style="display:none;">Iniciar Playlist</button>
+    </div>
+
+    <div id="currentVideoTitle"></div>
+    <div id="player"></div>
+
+    <div>
+        <button onclick="voltarVideo()" id="backBtn" style="display:none;">⏮️ Voltar</button>
+        <button onclick="pausarOuContinuar()" id="pauseBtn" style="display:none;">⏸️ Pausar</button>
+        <button onclick="pularVideo()" id="skipBtn" style="display:none;">⏭️ Pular</button>
+    </div>
+
+    <div id="playlistDisplay"></div>
+
+    <!-- 🎯 Área de Favoritos -->
+    <div id="favoritosArea">
+        <h3>🎯 Favoritos</h3>
+        <ul id="listaFavoritos"></ul>
+        <p id="infoLimite" style="display: none;">ℹ️ Limite de 10 favoritos! Considere exportar suas playlists.</p>
+    </div>
+
+<script>
+    let playlist = [];
+    let currentVideo = 0;
+    let currentRepeat = 0;
+    let player;
+    let isPaused = false;
+    let videoTitles = {};
+    let nomeDaPlaylist = "";
+    let apiCarregada = false;
+
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)[\w\-]{11}$/;
+
+    function applyTheme() {
+        const mode = localStorage.getItem('theme') || 'dark';
+        document.body.classList.toggle('dark', mode === 'dark');
+    }
+
+    function toggleMode() {
+        const isDark = document.body.classList.toggle('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    }
+
+    applyTheme();
+
+    function mostrarInput() {
+        const nome = document.getElementById('nomePlaylist').value.trim();
+        if (!nome) return alert("Insira o nome da playlist!");
+        nomeDaPlaylist = nome.substring(0, 100);
+        document.getElementById('playlistInput').style.display = 'block';
+        document.getElementById('startBtn').style.display = 'inline-block';
+    }
+
+    function iniciarPlaylist() {
+        const inputText = document.getElementById('playlistInput').value.trim();
+        if (!inputText) return alert("Adicione URLs!");
+
+        const lines = inputText.split('\n');
+
+        for (let line of lines) {
+            const [urlPart] = line.split('----').map(s => s.trim());
+            if (!youtubeRegex.test(urlPart)) {
+                alert(`URL inválida: "${urlPart}"`);
+                return;
+            }
+        }
+
+        playlist = lines.map(line => {
+            const [urlPart, repeatPart] = line.split('----').map(s => s.trim());
+            return { videoId: extrairVideoId(urlPart), repeat: parseInt(repeatPart) || 1 };
+        });
+
+        currentVideo = 0;
+        currentRepeat = 0;
+
+        mostrarControles();
+        carregarAPIDoYouTube();
+    }
+
+    function carregarAPIDoYouTube() {
+        if (apiCarregada) {
+            preCarregarTitulos();
+            loadVideo();
+            return;
+        }
+        if (!window.YT) {
+            let tag = document.createElement('script');
+            tag.src = "https://www.youtube.com/iframe_api";
+            document.body.appendChild(tag);
+        } else {
+            onYouTubeIframeAPIReady();
+        }
+    }
+
+    function onYouTubeIframeAPIReady() {
+        apiCarregada = true;
+        preCarregarTitulos();
+        loadVideo();
+    }
+
+    function loadVideo() {
+    if (player) {
+        player.loadVideoById(playlist[currentVideo].videoId);
+        atualizarTudo();
+    } else {
+        player = new YT.Player('player', {
+            height: '390',
+            width: '640',
+            videoId: playlist[currentVideo].videoId,
+            events: {
+                'onReady': function(event) {
+                    event.target.unMute();        // 🚨 Desmutar
+                    event.target.setVolume(50);   // 🚨 Definir volume em 50%
+                    atualizarTudo();
+                },
+                'onStateChange': onPlayerStateChange
+            }
+        });
+    }
+}
+
+
+    function onPlayerStateChange(event) {
+        if (event.data === YT.PlayerState.ENDED) {
+            currentRepeat++;
+            if (currentRepeat < playlist[currentVideo].repeat) {
+                player.seekTo(0);
+                player.playVideo();
+            } else {
+                pularVideo();
+            }
+        }
+    }
+
+    function pularVideo() {
+        if (!player) return alert("Player carregando!");
+        if (currentVideo < playlist.length - 1) {
+            currentVideo++;
+            currentRepeat = 0;
+            player.loadVideoById(playlist[currentVideo].videoId);
+            player.unMute();
+            player.setVolume(50);
+            atualizarTudo();
+        } else {
+            document.getElementById('currentVideoTitle').innerText = "🔥 Fim da playlist!";
+        }
+    }
+
+    function voltarVideo() {
+        if (!player) return alert("Player carregando!");
+        if (currentVideo > 0) {
+            currentVideo--;
+            currentRepeat = 0;
+            player.loadVideoById(playlist[currentVideo].videoId);
+            player.unMute();
+            player.setVolume(50);
+            atualizarTudo();
+        } else {
+            alert("Já está no primeiro vídeo!");
+        }
+    }
+
+    function pausarOuContinuar() {
+        if (!player) return;
+        if (isPaused) {
+            player.playVideo();
+            document.getElementById('pauseBtn').innerText = '⏸️ Pausar';
+        } else {
+            player.pauseVideo();
+            document.getElementById('pauseBtn').innerText = '▶️ Continuar';
+        }
+        isPaused = !isPaused;
+    }
+
+    function atualizarTudo() {
+        setTimeout(() => {
+            const data = player.getVideoData();
+            videoTitles[playlist[currentVideo].videoId] = data.title || "(Sem título)";
+            document.getElementById('currentVideoTitle').innerText = `🎬 Tocando: ${data.title} (${currentRepeat + 1}/${playlist[currentVideo].repeat})`;
+            atualizarListaPlaylist();
+        }, 1000);
+    }
+
+    function atualizarListaPlaylist() {
+        let html = '<h3>📜 Playlist Atual:</h3><ul>';
+        playlist.forEach((item, index) => {
+            const nome = videoTitles[item.videoId] || "🔄 Buscando título...";
+            html += `<li class="${index === currentVideo ? 'current' : ''}" onclick="irParaVideo(${index})">${nome} — ${item.repeat}x</li>`;
+        });
+        html += '</ul>';
+        document.getElementById('playlistDisplay').innerHTML = html;
+    }
+
+    function irParaVideo(index) {
+        if (!player) return alert("Player carregando!");
+        currentVideo = index;
+        currentRepeat = 0;
+        player.loadVideoById(playlist[currentVideo].videoId);
+        player.unMute();
+        player.setVolume(50);
+        atualizarTudo();    
+    }
+
+    function preCarregarTitulos() {
+        playlist.forEach(item => {
+            if (videoTitles[item.videoId]) return;
+            const tempDiv = document.createElement('div');
+            document.body.appendChild(tempDiv);
+            const tempPlayer = new YT.Player(tempDiv, {
+                videoId: item.videoId,
+                events: {
+                    'onReady': function(event) {
+                        videoTitles[item.videoId] = event.target.getVideoData().title || "(Sem título)";
+                        atualizarListaPlaylist();
+                        tempPlayer.destroy();
+                        tempDiv.remove();
+                    }
+                }
+            });
+        });
+    }
+
+    function exportarPlaylist() {
+        if (playlist.length === 0) return alert("Nenhuma playlist para exportar!");
+        let nomeArquivo = nomeDaPlaylist.replace(/\s+/g, '_').replace(/[^\w\-]/g, '') || "playlist_custom";
+        const exportData = playlist.map(item => ({
+            videoId: item.videoId,
+            repeat: item.repeat,
+            title: videoTitles[item.videoId] || ""
+        }));
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${nomeArquivo}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function importarPlaylist(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                playlist = importedData.map(item => ({ videoId: item.videoId, repeat: item.repeat }));
+                videoTitles = {};
+                importedData.forEach(item => videoTitles[item.videoId] = item.title || "");
+                currentVideo = 0;
+                currentRepeat = 0;
+                mostrarControles();
+                atualizarListaPlaylist();
+                carregarAPIDoYouTube();
+            } catch {
+                alert("Erro ao importar!");
+            }
+        };
+        reader.readAsText(file);
+    }
+
+    function salvarFavorito() {
+        if (playlist.length === 0) return alert("Nenhuma playlist carregada!");
+        let favoritos = JSON.parse(localStorage.getItem('favoritosYT')) || [];
+        if (favoritos.length >= 10) {
+            document.getElementById('infoLimite').style.display = 'block';
+            alert("Limite de 10 favoritos! Considere exportar.");
+            return;
+        }
+        favoritos.push({ nome: nomeDaPlaylist, data: playlist, titulos: videoTitles });
+        localStorage.setItem('favoritosYT', JSON.stringify(favoritos));
+        alert(`"${nomeDaPlaylist}" salvo nos favoritos!`);
+        listarFavoritos();
+    }
+
+    function listarFavoritos() {
+        const favoritos = JSON.parse(localStorage.getItem('favoritosYT')) || [];
+        const lista = document.getElementById('listaFavoritos');
+        lista.innerHTML = '';
+        favoritos.forEach((fav, index) => {
+            const li = document.createElement('li');
+            li.innerHTML = `⭐ ${fav.nome} 
+                <button onclick="carregarFavorito(${index})">▶️</button>
+                <button onclick="removerFavorito(${index})">❌</button>`;
+            lista.appendChild(li);
+        });
+        document.getElementById('infoLimite').style.display = favoritos.length >=10 ? 'block' : 'none';
+    }
+
+    function carregarFavorito(index) {
+        const favoritos = JSON.parse(localStorage.getItem('favoritosYT')) || [];
+        const fav = favoritos[index];
+        playlist = fav.data;
+        videoTitles = fav.titulos || {};
+        nomeDaPlaylist = fav.nome;
+        currentVideo = 0;
+        currentRepeat = 0;
+        mostrarControles();
+        atualizarListaPlaylist();
+        carregarAPIDoYouTube();
+        alert(`"${fav.nome}" carregado!`);
+    }
+
+    function removerFavorito(index) {
+        let favoritos = JSON.parse(localStorage.getItem('favoritosYT')) || [];
+        favoritos.splice(index, 1);
+        localStorage.setItem('favoritosYT', JSON.stringify(favoritos));
+        listarFavoritos();
+    }
+
+    function extrairVideoId(url) {
+        if (url.includes('youtu.be')) return url.split('youtu.be/')[1].substring(0,11);
+        if (url.includes('youtube.com')) return new URL(url).searchParams.get('v');
+        return null;
+    }
+
+    function mostrarControles() {
+        document.getElementById('skipBtn').style.display = 'inline-block';
+        document.getElementById('pauseBtn').style.display = 'inline-block';
+        document.getElementById('backBtn').style.display = 'inline-block';
+    }
+
+    function limparPlaylist() {
+        playlist = [];
+        videoTitles = {};
+        currentVideo = 0;
+        currentRepeat = 0;
+        document.getElementById('playlistInput').value = '';
+        document.getElementById('playlistDisplay').innerHTML = '';
+        document.getElementById('currentVideoTitle').innerText = '';
+        document.getElementById('skipBtn').style.display = 'none';
+        document.getElementById('pauseBtn').style.display = 'none';
+        document.getElementById('backBtn').style.display = 'none';
+        if (player) player.stopVideo();
+    }
+
+    // Carregar favoritos ao abrir
+    listarFavoritos();
+</script>
+</body>
+</html>
+

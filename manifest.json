@@ -1,0 +1,21 @@
+{
+  "name": "Meu Player YouTube Custom",
+  "short_name": "YT Player",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "icons": [
+    {
+      "src": "crow.png",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    },
+    {
+      "src": "sabia.png",
+      "sizes": "512x512",
+      "type": "image/jpg"
+    }
+  ]
+}
+
