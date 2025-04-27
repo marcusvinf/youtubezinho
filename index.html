@@ -247,6 +247,7 @@
                 if (currentRepeat < playlist[currentVideo].repeat) {
                     player.seekTo(0);
                     player.playVideo();
+                    atualizarTudo();
                 } else {
                     pularVideo();
                 }
@@ -302,13 +303,24 @@
         }
 
         function atualizarTudo() {
-            setTimeout(() => {
+            const tentarPegarTitulo = (tentativas = 5) => {
                 const data = player.getVideoData();
-                videoTitles[playlist[currentVideo].videoId] = data.title || "(Sem título)";
-                document.getElementById('currentVideoTitle').innerText = `🎬 Tocando: ${data.title} (${currentRepeat + 1}/${playlist[currentVideo].repeat})`;
-                atualizarListaPlaylist();
-            }, 1000);
+                if (data.title && data.title !== "YouTube") {
+                    videoTitles[playlist[currentVideo].videoId] = data.title;
+                    document.getElementById('currentVideoTitle').innerText = `🎬 Tocando: ${data.title} (${currentRepeat + 1}/${playlist[currentVideo].repeat})`;
+                    atualizarListaPlaylist();
+                } else if (tentativas > 0) {
+                    setTimeout(() => tentarPegarTitulo(tentativas - 1), 500);
+                } else {
+                    videoTitles[playlist[currentVideo].videoId] = "(Título não disponível)";
+                    document.getElementById('currentVideoTitle').innerText = `🎬 Tocando: (Título não disponível) (${currentRepeat + 1}/${playlist[currentVideo].repeat})`;
+                    atualizarListaPlaylist();
+                }
+            };
+
+            tentarPegarTitulo();
         }
+
 
         function atualizarListaPlaylist() {
             let html = '<h3>📜 Playlist Atual:</h3><ul>';
