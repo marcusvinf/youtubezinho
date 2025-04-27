@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <title>🎬 Player Customizado do YouTube</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#121212">
     <style>
         :root {
             --bg-color: #ffffff;
@@ -449,6 +451,13 @@
     // Carregar favoritos ao abrir
     listarFavoritos();
 </script>
+<script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(() => console.log('✅ Service Worker registrado!'))
+        .catch(err => console.log('❌ Erro ao registrar SW:', err));
+    }
+  </script>
 </body>
 </html>
 
