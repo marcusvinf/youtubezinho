@@ -166,12 +166,31 @@
         applyTheme();
 
         function mostrarInput() {
-            const nome = document.getElementById('nomePlaylist').value.trim();
+            const nomeInput = document.getElementById('nomePlaylist');
+            const nome = nomeInput.value.trim();
+
+            // se já houver playlist anterior em execução, zera os campos
+            if (playlist.length > 0) {
+                playlist = [];
+                videoTitles = {};
+                currentVideo = 0;
+                currentRepeat = 0;
+                document.getElementById('playlistDisplay').innerHTML = '';
+                document.getElementById('currentVideoTitle').innerText = '';
+                document.getElementById('player').innerHTML = ''; // remove o iframe
+                player = null;
+                apiCarregada = false;
+            }
+
             if (!nome) return alert("Insira o nome da playlist!");
+
             nomeDaPlaylist = nome.substring(0, 100);
+            nomeInput.value = nomeDaPlaylist;
+            document.getElementById('playlistInput').value = '';
             document.getElementById('playlistInput').style.display = 'block';
             document.getElementById('startBtn').style.display = 'inline-block';
         }
+
 
         function iniciarPlaylist() {
             const inputText = document.getElementById('playlistInput').value.trim();
@@ -393,6 +412,7 @@
 
         function exportarPlaylist() {
             if (playlist.length === 0) return alert("Nenhuma playlist para exportar!");
+            nomeDaPlaylist = document.getElementById('nomePlaylist').value.trim().substring(0, 100);
             let nomeArquivo = nomeDaPlaylist.replace(/\s+/g, '_').replace(/[^\w\-]/g, '') || "playlist_custom";
             const exportData = playlist.map(item => ({
                 videoId: item.videoId,
@@ -432,6 +452,7 @@
 
         function salvarFavorito() {
             if (playlist.length === 0) return alert("Nenhuma playlist carregada!");
+            nomeDaPlaylist = document.getElementById('nomePlaylist').value.trim().substring(0, 100);
             let favoritos = JSON.parse(localStorage.getItem('favoritosYT')) || [];
             if (favoritos.length >= 10) {
                 document.getElementById('infoLimite').style.display = 'block';
