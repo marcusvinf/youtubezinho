@@ -452,19 +452,37 @@
 
         function salvarFavorito() {
             if (playlist.length === 0) return alert("Nenhuma playlist carregada!");
+
             nomeDaPlaylist = document.getElementById('nomePlaylist').value.trim().substring(0, 100);
+            if (!nomeDaPlaylist) return alert("Dê um nome à playlist antes de salvar!");
+
             let favoritos = JSON.parse(localStorage.getItem('favoritosYT')) || [];
-            if (favoritos.length >= 10) {
-                document.getElementById('infoLimite').style.display = 'block';
-                alert("Limite de 10 favoritos! Considere exportar.");
-                return;
+
+            const indexExistente = favoritos.findIndex(fav => fav.nome === nomeDaPlaylist);
+
+            const novoFavorito = {
+                nome: nomeDaPlaylist,
+                data: playlist,
+                titulos: videoTitles
+            };
+
+            if (indexExistente !== -1) {
+                favoritos[indexExistente] = novoFavorito;
+                alert(`"${nomeDaPlaylist}" foi atualizado nos favoritos!`);
+            } else {
+                if (favoritos.length >= 10) {
+                    document.getElementById('infoLimite').style.display = 'block';
+                    return alert("Limite de 10 favoritos! Considere exportar ou apagar um.");
+                }
+                favoritos.push(novoFavorito);
+                alert(`"${nomeDaPlaylist}" salvo nos favoritos!`);
             }
-            favoritos.push({ nome: nomeDaPlaylist, data: playlist, titulos: videoTitles });
+
             localStorage.setItem('favoritosYT', JSON.stringify(favoritos));
-            alert(`"${nomeDaPlaylist}" salvo nos favoritos!`);
             listarFavoritos();
-            document.getElementById('nomePlaylist').value = nomeDaPlaylist; // <-- GARANTE a sincronia com o input
+            document.getElementById('nomePlaylist').value = nomeDaPlaylist;
         }
+
 
         let loopAtivado = false;
         function limparLinks() {
