@@ -115,6 +115,7 @@
     <button onclick="limparLinks()">🧹 Limpar Links</button>
     <button onclick="toggleLoop()" id="loopBtn">🔁 Loop: Desativado</button>
     <button onclick="salvarFavorito()">⭐ Salvar como Favorito</button>
+    <button id="editarBtn" onclick="editarPlaylist()" style="display: none;">✏️ Editar Playlist</button>
     <input type="file" id="importInput" style="display:none" accept=".json" onchange="importarPlaylist(event)">
 
     <div id="inputArea">
@@ -188,14 +189,34 @@
 
             playlist = lines.map(line => {
                 const [urlPart, repeatPart] = line.split('----').map(s => s.trim());
-                return { videoId: extrairVideoId(urlPart), repeat: parseInt(repeatPart) || 1 };
+                const videoId = extrairVideoId(urlPart);
+                let repeat = parseInt(repeatPart);
+                if (isNaN(repeat) || repeat <= 0) repeat = 1;
+                return { videoId, repeat };
             });
+
 
             currentVideo = 0;
             currentRepeat = 0;
 
             mostrarControles();
             carregarAPIDoYouTube();
+        }
+
+        function preencherTextareaComPlaylistAtual() {
+            const linhas = playlist.map(item => {
+                const url = `https://www.youtube.com/watch?v=${item.videoId}`;
+                return `${url} ---- ${item.repeat}`;
+            });
+            document.getElementById('playlistInput').value = linhas.join('\n');
+            document.getElementById('playlistInput').style.display = 'block';
+            document.getElementById('startBtn').style.display = 'inline-block';
+        }
+
+        function editarPlaylist() {
+            preencherTextareaComPlaylistAtual();
+            document.getElementById('nomePlaylist').value = nomeDaPlaylist;
+            alert("Edite os links e clique em 'Iniciar Playlist' para aplicar as mudanças.");
         }
 
         function carregarAPIDoYouTube() {
@@ -242,20 +263,20 @@
 
 
         function onPlayerStateChange(event) {
-    if (event.data === YT.PlayerState.ENDED) {
-        currentRepeat++;
-        if (currentRepeat < playlist[currentVideo].repeat) {
-            player.seekTo(0);
-            player.playVideo();
-            atualizarTudo();
-        } else {
-            pularVideo();
+            if (event.data === YT.PlayerState.ENDED) {
+                currentRepeat++;
+                if (currentRepeat < playlist[currentVideo].repeat) {
+                    player.seekTo(0);
+                    player.playVideo();
+                    atualizarTudo();
+                } else {
+                    pularVideo();
+                }
+            }
+            if (event.data === YT.PlayerState.PLAYING) {
+                atualizarTudo();  // Atualiza quando o vídeo realmente começa
+            }
         }
-    } 
-    if (event.data === YT.PlayerState.PLAYING) {
-        atualizarTudo();  // Atualiza quando o vídeo realmente começa
-    }
-}
 
 
         function pularVideo() {
@@ -266,6 +287,7 @@
                 player.loadVideoById(playlist[currentVideo].videoId);
                 player.unMute();
                 player.setVolume(50);
+                atualizarTudo();
             } else {
                 if (loopAtivado) {
                     currentVideo = 0;
@@ -287,6 +309,7 @@
                 player.loadVideoById(playlist[currentVideo].videoId);
                 player.unMute();
                 player.setVolume(50);
+                atualizarTudo();
             } else {
                 alert("Já está no primeiro vídeo!");
             }
@@ -308,7 +331,12 @@
             const tentarPegarTitulo = (tentativas = 5) => {
                 const data = player.getVideoData();
                 if (data.title && data.title !== "YouTube") {
-                    videoTitles[playlist[currentVideo].videoId] = data.title;
+                    const titulo = data.title.toLowerCase();
+                    if (titulo.includes("private") || titulo.includes("deleted")) {
+                        videoTitles[playlist[currentVideo].videoId] = "(Vídeo indisponível)";
+                    } else {
+                        videoTitles[playlist[currentVideo].videoId] = data.title;
+                    }
                     document.getElementById('currentVideoTitle').innerText = `🎬 Tocando: ${data.title} (${currentRepeat + 1}/${playlist[currentVideo].repeat})`;
                     atualizarListaPlaylist();
                 } else if (tentativas > 0) {
@@ -341,6 +369,7 @@
             player.loadVideoById(playlist[currentVideo].videoId);
             player.unMute();
             player.setVolume(50);
+            atualizarTudo();
         }
 
         function preCarregarTitulos() {
@@ -480,6 +509,7 @@
             document.getElementById('skipBtn').style.display = 'inline-block';
             document.getElementById('pauseBtn').style.display = 'inline-block';
             document.getElementById('backBtn').style.display = 'inline-block';
+            document.getElementById('editarBtn').style.display = 'inline-block';
         }
 
         function limparPlaylist() {
@@ -493,6 +523,7 @@
             document.getElementById('skipBtn').style.display = 'none';
             document.getElementById('pauseBtn').style.display = 'none';
             document.getElementById('backBtn').style.display = 'none';
+            document.getElementById('editarBtn').style.display = 'none';
             if (player) player.stopVideo();
         }
 
