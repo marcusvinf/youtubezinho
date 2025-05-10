@@ -568,7 +568,6 @@
             if (player) player.stopVideo();
         }
 
-        // Carregar favoritos ao abrir
         listarFavoritos();
     </script>
     <script>
@@ -578,6 +577,12 @@
                 .catch(err => console.log('❌ Erro ao registrar SW:', err));
         }
     </script>
+    <script>
+        window.onload = function () {
+            document.getElementById('nomePlaylist').value = ''; // limpa o nome da playlist
+        };
+    </script>
+    
 </body>
 
 </html>
