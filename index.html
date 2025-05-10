@@ -463,6 +463,7 @@
             localStorage.setItem('favoritosYT', JSON.stringify(favoritos));
             alert(`"${nomeDaPlaylist}" salvo nos favoritos!`);
             listarFavoritos();
+            document.getElementById('nomePlaylist').value = nomeDaPlaylist; // <-- GARANTE a sincronia com o input
         }
 
         let loopAtivado = false;
@@ -511,6 +512,7 @@
             atualizarListaPlaylist();
             carregarAPIDoYouTube();
             alert(`"${fav.nome}" carregado!`);
+            document.getElementById('nomePlaylist').value = nomeDaPlaylist;
         }
 
         function removerFavorito(index) {
